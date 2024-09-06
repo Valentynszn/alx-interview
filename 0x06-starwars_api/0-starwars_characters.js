@@ -1,57 +1,25 @@
 #!/usr/bin/node
-
 const request = require('request');
+const API_URL = 'https://swapi-api.hbtn.io/api';
 
-// Get the movie ID from command line arguments
-const movieId = process.argv[2];
-const filmEndPoint = `https://swapi-api.hbtn.io/api/films/${movieId}`;
+if (process.argv.length > 2) {
+  request(`${API_URL}/films/${process.argv[2]}/`, (err, _, body) => {
+    if (err) {
+      console.log(err);
+    }
+    const charactersURL = JSON.parse(body).characters;
+    const charactersName = charactersURL.map(
+      url => new Promise((resolve, reject) => {
+        request(url, (promiseErr, __, charactersReqBody) => {
+          if (promiseErr) {
+            reject(promiseErr);
+          }
+          resolve(JSON.parse(charactersReqBody).name);
+        });
+      }));
 
-// Function to fetch characters from the movie
-const fetchCharacters = async () => {
-  return new Promise((resolve, reject) => {
-    request(filmEndPoint, (err, res, body) => {
-      if (err) {
-        reject(`Error: ${err}`);
-      } else if (res.statusCode !== 200) {
-        reject(`Error: ${res.statusCode}`);
-      } else {
-        // Parse response body and get characters list
-        const characters = JSON.parse(body).characters;
-        resolve(characters);
-      }
-    });
+    Promise.all(charactersName)
+      .then(names => console.log(names.join('\n')))
+      .catch(allErr => console.log(allErr));
   });
-};
-
-// Function to fetch and print character names
-const printCharacterNames = async (characters) => {
-  for (const characterUrl of characters) {
-    await new Promise((resolve, reject) => {
-      request(characterUrl, (err, res, body) => {
-        if (err) {
-          reject(`Error: ${err}`);
-        } else if (res.statusCode !== 200) {
-          reject(`Error: ${res.statusCode}`);
-        } else {
-          // Parse response body and print character name
-          const name = JSON.parse(body).name;
-          console.log(name);
-          resolve();
-        }
-      });
-    });
-  }
-};
-
-// Main function to coordinate fetching and printing
-const main = async () => {
-  try {
-    const characters = await fetchCharacters();
-    await printCharacterNames(characters);
-  } catch (error) {
-    console.error(error);
-  }
-};
-
-main();
-
+}
